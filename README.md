@@ -157,6 +157,17 @@ Then set your Slack Event Subscriptions request URL to:
 https://<your-tunnel-domain>/bots/<bot-name>/slack/events
 ```
 
+## Verify
+
+From an activated virtualenv with `requirements.txt` installed, run the unit tests and the public-readiness audit before opening a PR or deploying:
+
+```sh
+python -m unittest discover -s tests
+python scripts/audit_public_readiness.py --scope samples
+```
+
+For a stricter pre-publish check that scans every committed file (not just samples), see `SECURITY_CHECKLIST.md` for the `--scope all` invocation with an optional private denylist.
+
 ## Docker local run
 
 Build the image:

@@ -10,7 +10,9 @@ bots:
     slack_signing_secret: "${ASSISTANT_SLACK_SIGNING_SECRET}"
     oz_api_key: "${ASSISTANT_OZ_API_KEY}"
     oz_environment_id: "${ASSISTANT_OZ_ENVIRONMENT_ID}"
-    oz_base_url: "${OZ_API_BASE_URL}"
+    # oz_base_url is optional. Defaults to the OZ_API_BASE_URL environment variable
+    # (or https://app.warp.dev/api/v1 if that is also unset). Uncomment to override per bot.
+    # oz_base_url: "${OZ_API_BASE_URL}"
 
     # Optional: set true only if the bot handler should receive top-level Slack messages.
     process_messages: false
@@ -42,7 +44,8 @@ webhooks:
     source: "json_prompt"
     oz_api_key: "${JSON_TASK_OZ_API_KEY}"
     oz_environment_id: "${JSON_TASK_OZ_ENVIRONMENT_ID}"
-    oz_base_url: "${OZ_API_BASE_URL}"
+    # oz_base_url is optional; see the bot example above for details.
+    # oz_base_url: "${OZ_API_BASE_URL}"
 
     # Optional but recommended for every public webhook.
     auth_header_name: "Authorization"
@@ -68,7 +71,8 @@ webhooks:
     source: "event_forwarder"
     oz_api_key: "${EVENT_FORWARDER_OZ_API_KEY}"
     oz_environment_id: "${EVENT_FORWARDER_OZ_ENVIRONMENT_ID}"
-    oz_base_url: "${OZ_API_BASE_URL}"
+    # oz_base_url is optional; see the bot example above for details.
+    # oz_base_url: "${OZ_API_BASE_URL}"
     auth_header_name: "Authorization"
     auth_token: "${EVENT_FORWARDER_WEBHOOK_AUTH_TOKEN}"
     skill_spec: "${EVENT_FORWARDER_SKILL_SPEC}"

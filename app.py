@@ -23,6 +23,7 @@ from warp_agent import create_warp_client, WarpAgentClient
 from bots import get_handler
 from bots.base import BaseBotHandler
 from webhooks.auth import is_webhook_authorized
+from webhooks.errors import WebhookValidationError
 from webhooks import get_webhook_handler
 
 # Load environment variables (for config path, etc.)
@@ -327,9 +328,20 @@ def handle_webhook(webhook_name: str):
         result = handler(payload, webhook_config, warp_client)
         logger.info(f"Webhook '{webhook_name}' processed: run_id={result.get('run_id')}")
         return jsonify(result), 200
-    except Exception as e:
-        logger.error(f"Webhook '{webhook_name}' error: {e}")
-        return jsonify({"error": str(e)}), 500
+    except WebhookValidationError as e:
+        # The handler explicitly marked this message as safe to return to the
+        # client (e.g. "Missing required payload field(s): request").
+        # ``public_message`` -- not ``str(e)`` -- is the safe channel.
+        logger.warning(f"Webhook '{webhook_name}' rejected bad request: {e.public_message}")
+        return jsonify({"error": e.public_message}), 400
+    except ValueError:
+        # An unexpected ValueError from a handler is treated as a generic
+        # client error: server logs the detail, client gets a generic message.
+        logger.exception(f"Webhook '{webhook_name}' rejected with unexpected ValueError")
+        return jsonify({"error": "Invalid webhook payload"}), 400
+    except Exception:
+        logger.exception(f"Webhook '{webhook_name}' error")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @flask_app.route("/health", methods=["GET"])

@@ -7,6 +7,8 @@ and dispatches an Oz cloud agent run using the configured skill.
 """
 import logging
 
+from webhooks.errors import WebhookValidationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +19,9 @@ def _validate_required_fields(payload: dict, required_fields: list[str]) -> None
         if payload.get(field) is None or payload.get(field) == ""
     ]
     if missing_fields:
-        raise ValueError(f"Missing required payload field(s): {', '.join(missing_fields)}")
+        raise WebhookValidationError(
+            f"Missing required payload field(s): {', '.join(missing_fields)}"
+        )
 
 
 def _build_prompt(payload: dict, webhook_config) -> str:
@@ -31,7 +35,7 @@ def _build_prompt(payload: dict, webhook_config) -> str:
             prompt_fields[prompt_key] = str(value)
 
     if not prompt_fields:
-        raise ValueError("No prompt fields configured for json_prompt webhook")
+        raise WebhookValidationError("No prompt fields configured for json_prompt webhook")
 
     return "\n".join(f"{key}: {value}" for key, value in prompt_fields.items())
 
@@ -43,7 +47,7 @@ def handle_json_prompt_event(payload: dict, webhook_config, warp_client):
     Returns a small dict for logging/HTTP response purposes.
     """
     if not isinstance(payload, dict):
-        raise ValueError("Webhook payload must be a JSON object")
+        raise WebhookValidationError("Webhook payload must be a JSON object")
 
     prompt = _build_prompt(payload, webhook_config)
 
