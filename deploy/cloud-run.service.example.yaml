@@ -1,0 +1,76 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: <your-service-name>
+  labels:
+    cloud.googleapis.com/location: <your-region>
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      serviceAccountName: <your-service-account>@<your-gcp-project-id>.iam.gserviceaccount.com
+      containers:
+        - image: <your-image-uri>
+          ports:
+            - name: http1
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: GATEWAY_CONFIG_PATH
+              value: /secrets/gateway-config/config.yaml
+            - name: OZ_API_BASE_URL
+              value: https://app.warp.dev/api/v1
+            - name: ASSISTANT_SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ASSISTANT_SLACK_BOT_TOKEN
+                  key: latest
+            - name: ASSISTANT_SLACK_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ASSISTANT_SLACK_SIGNING_SECRET
+                  key: latest
+            - name: ASSISTANT_OZ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ASSISTANT_OZ_API_KEY
+                  key: latest
+            - name: ASSISTANT_OZ_ENVIRONMENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ASSISTANT_OZ_ENVIRONMENT_ID
+                  key: latest
+            - name: JSON_TASK_OZ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: JSON_TASK_OZ_API_KEY
+                  key: latest
+            - name: JSON_TASK_OZ_ENVIRONMENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: JSON_TASK_OZ_ENVIRONMENT_ID
+                  key: latest
+            - name: JSON_TASK_WEBHOOK_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: JSON_TASK_WEBHOOK_AUTH_TOKEN
+                  key: latest
+            - name: JSON_TASK_SKILL_SPEC
+              value: owner/repository:path/to/SKILL.md
+          volumeMounts:
+            - name: gateway-config
+              mountPath: /secrets/gateway-config
+              readOnly: true
+      volumes:
+        - name: gateway-config
+          secret:
+            secretName: <gateway-config-secret-name>
+            items:
+              - key: latest
+                path: config.yaml

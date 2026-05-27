@@ -1,0 +1,34 @@
+.git
+.github
+.gitignore
+
+# Local secrets and operational config
+.env
+.env.*
+!.env.example
+config.yaml
+config.*.yaml
+!config.example.yaml
+
+# Python/build artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Local/editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Files not needed in the runtime image
+README.md
+deploy/
+tests/
+examples/
