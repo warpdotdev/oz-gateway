@@ -330,10 +330,10 @@ def handle_webhook(webhook_name: str):
     except ValueError as e:
         # Client errors: missing required payload fields, wrong payload shape, etc.
         logger.warning(f"Webhook '{webhook_name}' rejected bad request: {e}")
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        logger.error(f"Webhook '{webhook_name}' error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Invalid webhook payload"}), 400
+    except Exception:
+        logger.exception(f"Webhook '{webhook_name}' error")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @flask_app.route("/health", methods=["GET"])
