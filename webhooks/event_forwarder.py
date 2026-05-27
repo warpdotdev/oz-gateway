@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Any
 
+from webhooks.errors import WebhookValidationError
 from webhooks.json_prompt import _validate_required_fields
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def _build_prompt(payload: dict, webhook_config) -> str:
 def handle_event_forwarder_event(payload: dict, webhook_config, warp_client):
     """Forward a generic JSON event to an Oz agent run."""
     if not isinstance(payload, dict):
-        raise ValueError("Webhook payload must be a JSON object")
+        raise WebhookValidationError("Webhook payload must be a JSON object")
 
     prompt = _build_prompt(payload, webhook_config)
     logger.info(

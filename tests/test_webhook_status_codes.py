@@ -152,22 +152,38 @@ class WebhookStatusCodeTests(unittest.TestCase):
              ):
             return self.app_module.handle_webhook("json-task")
 
-    def test_value_error_from_handler_returns_400(self):
+    def test_webhook_validation_error_returns_400_with_public_message(self):
+        from webhooks.errors import WebhookValidationError
+
         def handler(payload, webhook_config, warp_client):
-            raise ValueError("Missing required payload field(s): request")
+            raise WebhookValidationError("Missing required payload field(s): request")
 
         body, status = self._invoke_with_handler(handler)
         self.assertEqual(status, 400)
-        # body is ("JSONIFIED", {"error": "..."}) via the FakeFlask jsonify
+        # body is ("JSONIFIED", {"error": "..."}) via the FakeFlask jsonify.
+        # The public_message must round-trip verbatim so clients see actionable
+        # validation feedback.
         self.assertEqual(body[1]["error"], "Missing required payload field(s): request")
 
-    def test_unexpected_exception_from_handler_returns_500(self):
+    def test_unexpected_value_error_returns_generic_400(self):
         def handler(payload, webhook_config, warp_client):
-            raise RuntimeError("network down")
+            raise ValueError("internal /var/secret/path lookup failed")
+
+        body, status = self._invoke_with_handler(handler)
+        self.assertEqual(status, 400)
+        # The raw exception message is NOT exposed to the client.
+        self.assertEqual(body[1]["error"], "Invalid webhook payload")
+        self.assertNotIn("/var/secret", body[1]["error"])
+
+    def test_unexpected_exception_returns_generic_500(self):
+        def handler(payload, webhook_config, warp_client):
+            raise RuntimeError("network down: 10.0.0.5 unreachable")
 
         body, status = self._invoke_with_handler(handler)
         self.assertEqual(status, 500)
-        self.assertEqual(body[1]["error"], "network down")
+        # The raw exception message is NOT exposed to the client.
+        self.assertEqual(body[1]["error"], "Internal server error")
+        self.assertNotIn("10.0.0.5", body[1]["error"])
 
 
 if __name__ == "__main__":
