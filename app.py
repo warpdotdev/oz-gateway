@@ -327,6 +327,10 @@ def handle_webhook(webhook_name: str):
         result = handler(payload, webhook_config, warp_client)
         logger.info(f"Webhook '{webhook_name}' processed: run_id={result.get('run_id')}")
         return jsonify(result), 200
+    except ValueError as e:
+        # Client errors: missing required payload fields, wrong payload shape, etc.
+        logger.warning(f"Webhook '{webhook_name}' rejected bad request: {e}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"Webhook '{webhook_name}' error: {e}")
         return jsonify({"error": str(e)}), 500
