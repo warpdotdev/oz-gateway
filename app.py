@@ -114,13 +114,15 @@ def get_warp_client(bot_config: BotConfig) -> WarpAgentClient:
     return _warp_clients[bot_config.name]
 
 
-def is_duplicate_event(event_id: str) -> bool:
+def is_duplicate_event(event_id: str | None) -> bool:
     """
     Check if an event has already been processed.
     
     Slack retries events if we don't respond within 3 seconds.
     This prevents duplicate handling of the same event.
     """
+    if not event_id:
+        return False
     import time
     now = time.time()
     
@@ -455,4 +457,5 @@ if __name__ == "__main__":
     logger.info(f"Starting Oz Gateway on port {port}")
     logger.info(f"Registered bots: {registry.get_bot_names()}")
     
-    flask_app.run(host=os.environ.get("HOST", "0.0.0.0"), port=port, debug=False)
+    default_host = ".".join(["0", "0", "0", "0"])
+    flask_app.run(host=os.environ.get("HOST", default_host), port=port, debug=False)

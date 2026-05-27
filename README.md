@@ -89,10 +89,10 @@ Most string values in `config.yaml` can use `${VAR_NAME}` syntax. At startup, th
 Example:
 
 ```yaml
-warp_api_key: "${ASSISTANT_OZ_API_KEY}"
+oz_api_key: "${ASSISTANT_OZ_API_KEY}"
 ```
 
-If `ASSISTANT_OZ_API_KEY` is missing, that bot or webhook is skipped and an error is logged. Missing top-level values can prevent the service from starting.
+If `ASSISTANT_OZ_API_KEY` is missing, that bot or webhook is skipped and an error is logged. Missing top-level values can prevent the service from starting. Legacy `warp_api_key`, `warp_environment_id`, and `warp_base_url` keys are still accepted, but new configs should use `oz_api_key`, `oz_environment_id`, and `oz_base_url`.
 
 ### MCP server secret boundary
 

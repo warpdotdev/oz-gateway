@@ -63,6 +63,23 @@ spec:
                   key: latest
             - name: JSON_TASK_SKILL_SPEC
               value: owner/repository:path/to/SKILL.md
+            - name: EVENT_FORWARDER_OZ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: EVENT_FORWARDER_OZ_API_KEY
+                  key: latest
+            - name: EVENT_FORWARDER_OZ_ENVIRONMENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: EVENT_FORWARDER_OZ_ENVIRONMENT_ID
+                  key: latest
+            - name: EVENT_FORWARDER_WEBHOOK_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: EVENT_FORWARDER_WEBHOOK_AUTH_TOKEN
+                  key: latest
+            - name: EVENT_FORWARDER_SKILL_SPEC
+              value: owner/repository:path/to/SKILL.md
           volumeMounts:
             - name: gateway-config
               mountPath: /secrets/gateway-config

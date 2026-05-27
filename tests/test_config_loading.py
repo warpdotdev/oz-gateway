@@ -24,9 +24,9 @@ class ConfigLoadingTests(unittest.TestCase):
               - name: "assistant"
                 slack_bot_token: "${SLACK_BOT_TOKEN}"
                 slack_signing_secret: "${SLACK_SIGNING_SECRET}"
-                warp_api_key: "${OZ_API_KEY}"
-                warp_environment_id: "${OZ_ENVIRONMENT_ID}"
-                warp_base_url: "${OZ_API_BASE_URL}"
+                oz_api_key: "${OZ_API_KEY}"
+                oz_environment_id: "${OZ_ENVIRONMENT_ID}"
+                oz_base_url: "${OZ_API_BASE_URL}"
                 process_messages: true
                 process_interactions: true
                 mcp_servers:
@@ -40,9 +40,9 @@ class ConfigLoadingTests(unittest.TestCase):
             webhooks:
               - name: "json-task"
                 source: "json_prompt"
-                warp_api_key: "${WEBHOOK_OZ_API_KEY}"
-                warp_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
-                warp_base_url: "${OZ_API_BASE_URL}"
+                oz_api_key: "${WEBHOOK_OZ_API_KEY}"
+                oz_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
+                oz_base_url: "${OZ_API_BASE_URL}"
                 auth_header_name: "Authorization"
                 auth_token: "${WEBHOOK_AUTH_TOKEN}"
                 skill_spec: "${WEBHOOK_SKILL_SPEC}"
@@ -101,8 +101,8 @@ class ConfigLoadingTests(unittest.TestCase):
               - name: "assistant"
                 slack_bot_token: "${SLACK_BOT_TOKEN}"
                 slack_signing_secret: "${SLACK_SIGNING_SECRET}"
-                warp_api_key: "${OZ_API_KEY}"
-                warp_environment_id: "${OZ_ENVIRONMENT_ID}"
+                oz_api_key: "${OZ_API_KEY}"
+                oz_environment_id: "${OZ_ENVIRONMENT_ID}"
               - name: "missing-env"
                 slack_bot_token: "${MISSING_SLACK_BOT_TOKEN}"
                 slack_signing_secret: "${SLACK_SIGNING_SECRET}"
@@ -111,12 +111,12 @@ class ConfigLoadingTests(unittest.TestCase):
             webhooks:
               - name: "json-task"
                 source: "json_prompt"
-                warp_api_key: "${WEBHOOK_OZ_API_KEY}"
-                warp_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
+                oz_api_key: "${WEBHOOK_OZ_API_KEY}"
+                oz_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
               - name: "missing-webhook-env"
                 source: "json_prompt"
-                warp_api_key: "${MISSING_WEBHOOK_OZ_API_KEY}"
-                warp_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
+                oz_api_key: "${MISSING_WEBHOOK_OZ_API_KEY}"
+                oz_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
             """
         )
 
@@ -134,6 +134,44 @@ class ConfigLoadingTests(unittest.TestCase):
 
         self.assertEqual(list(config.bots), ["assistant"])
         self.assertEqual(list(config.webhooks), ["json-task"])
+
+    def test_legacy_warp_config_keys_are_still_accepted(self):
+        config_path = self._write_config(
+            """
+            bots:
+              - name: "assistant"
+                slack_bot_token: "${SLACK_BOT_TOKEN}"
+                slack_signing_secret: "${SLACK_SIGNING_SECRET}"
+                warp_api_key: "${OZ_API_KEY}"
+                warp_environment_id: "${OZ_ENVIRONMENT_ID}"
+                warp_base_url: "${OZ_API_BASE_URL}"
+            webhooks:
+              - name: "json-task"
+                source: "json_prompt"
+                warp_api_key: "${WEBHOOK_OZ_API_KEY}"
+                warp_environment_id: "${WEBHOOK_OZ_ENVIRONMENT_ID}"
+                warp_base_url: "${OZ_API_BASE_URL}"
+            """
+        )
+
+        env = {
+            "SLACK_BOT_TOKEN": "placeholder-slack-token",
+            "SLACK_SIGNING_SECRET": "placeholder-slack-signing-secret",
+            "OZ_API_KEY": "placeholder-oz-api-key",
+            "OZ_ENVIRONMENT_ID": "placeholder-oz-environment-id",
+            "OZ_API_BASE_URL": "https://api.example.com/v1",
+            "WEBHOOK_OZ_API_KEY": "placeholder-webhook-oz-api-key",
+            "WEBHOOK_OZ_ENVIRONMENT_ID": "placeholder-webhook-oz-environment-id",
+        }
+
+        with patch.dict(os.environ, env, clear=True):
+            config = load_config(config_path)
+
+        self.assertEqual(config.bots["assistant"].warp_api_key, "placeholder-oz-api-key")
+        self.assertEqual(
+            config.webhooks["json-task"].warp_api_key,
+            "placeholder-webhook-oz-api-key",
+        )
 
 
 if __name__ == "__main__":

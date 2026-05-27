@@ -1,5 +1,5 @@
 """
-Configuration loading for the Slack-to-Oz gateway.
+Configuration loading for Oz Gateway.
 
 Loads bot configurations from a YAML file, with support for environment
 variable interpolation.
@@ -52,6 +52,24 @@ def get_config_path(config_path: str | Path | None = None) -> Path:
     return Path(resolved)
 
 
+def get_config_value(
+    data: dict,
+    key: str,
+    *,
+    legacy_key: str | None = None,
+    default=None,
+    required: bool = False,
+):
+    """Return a config value, accepting an optional legacy key alias."""
+    if key in data:
+        return data[key]
+    if legacy_key and legacy_key in data:
+        return data[legacy_key]
+    if required:
+        raise KeyError(key)
+    return default
+
+
 @dataclass
 class BotConfig:
     """Configuration for a single Slack bot."""
@@ -83,9 +101,9 @@ class BotConfig:
         if not self.slack_signing_secret:
             raise ValueError(f"Bot '{self.name}': slack_signing_secret is required")
         if not self.warp_api_key:
-            raise ValueError(f"Bot '{self.name}': warp_api_key is required")
+            raise ValueError(f"Bot '{self.name}': oz_api_key is required")
         if not self.warp_environment_id:
-            raise ValueError(f"Bot '{self.name}': warp_environment_id is required")
+            raise ValueError(f"Bot '{self.name}': oz_environment_id is required")
 
 
 @dataclass
@@ -111,9 +129,9 @@ class WebhookConfig:
         if not self.source:
             raise ValueError(f"Webhook '{self.name}': source is required")
         if not self.warp_api_key:
-            raise ValueError(f"Webhook '{self.name}': warp_api_key is required")
+            raise ValueError(f"Webhook '{self.name}': oz_api_key is required")
         if not self.warp_environment_id:
-            raise ValueError(f"Webhook '{self.name}': warp_environment_id is required")
+            raise ValueError(f"Webhook '{self.name}': oz_environment_id is required")
 
 
 @dataclass
@@ -132,9 +150,24 @@ class GatewayConfig:
                 name=bot_data["name"],
                 slack_bot_token=bot_data["slack_bot_token"],
                 slack_signing_secret=bot_data["slack_signing_secret"],
-                warp_api_key=bot_data["warp_api_key"],
-                warp_environment_id=bot_data["warp_environment_id"],
-                warp_base_url=bot_data.get("warp_base_url", get_default_oz_api_base_url()),
+                warp_api_key=get_config_value(
+                    bot_data,
+                    "oz_api_key",
+                    legacy_key="warp_api_key",
+                    required=True,
+                ),
+                warp_environment_id=get_config_value(
+                    bot_data,
+                    "oz_environment_id",
+                    legacy_key="warp_environment_id",
+                    required=True,
+                ),
+                warp_base_url=get_config_value(
+                    bot_data,
+                    "oz_base_url",
+                    legacy_key="warp_base_url",
+                    default=get_default_oz_api_base_url(),
+                ),
                 mcp_servers=bot_data.get("mcp_servers"),
                 process_messages=bool(bot_data.get("process_messages", False)),
                 process_interactions=bool(bot_data.get("process_interactions", False)),
@@ -146,9 +179,24 @@ class GatewayConfig:
             webhook = WebhookConfig(
                 name=webhook_data["name"],
                 source=webhook_data["source"],
-                warp_api_key=webhook_data["warp_api_key"],
-                warp_environment_id=webhook_data["warp_environment_id"],
-                warp_base_url=webhook_data.get("warp_base_url", get_default_oz_api_base_url()),
+                warp_api_key=get_config_value(
+                    webhook_data,
+                    "oz_api_key",
+                    legacy_key="warp_api_key",
+                    required=True,
+                ),
+                warp_environment_id=get_config_value(
+                    webhook_data,
+                    "oz_environment_id",
+                    legacy_key="warp_environment_id",
+                    required=True,
+                ),
+                warp_base_url=get_config_value(
+                    webhook_data,
+                    "oz_base_url",
+                    legacy_key="warp_base_url",
+                    default=get_default_oz_api_base_url(),
+                ),
                 mcp_servers=webhook_data.get("mcp_servers"),
                 skill_spec=webhook_data.get("skill_spec"),
                 required_payload_fields=webhook_data.get("required_payload_fields"),
@@ -257,9 +305,24 @@ def load_config(config_path: str | Path | None = None) -> GatewayConfig:
                 name=bot_data["name"],
                 slack_bot_token=bot_data["slack_bot_token"],
                 slack_signing_secret=bot_data["slack_signing_secret"],
-                warp_api_key=bot_data["warp_api_key"],
-                warp_environment_id=bot_data["warp_environment_id"],
-                warp_base_url=bot_data.get("warp_base_url", get_default_oz_api_base_url()),
+                warp_api_key=get_config_value(
+                    bot_data,
+                    "oz_api_key",
+                    legacy_key="warp_api_key",
+                    required=True,
+                ),
+                warp_environment_id=get_config_value(
+                    bot_data,
+                    "oz_environment_id",
+                    legacy_key="warp_environment_id",
+                    required=True,
+                ),
+                warp_base_url=get_config_value(
+                    bot_data,
+                    "oz_base_url",
+                    legacy_key="warp_base_url",
+                    default=get_default_oz_api_base_url(),
+                ),
                 mcp_servers=bot_data.get("mcp_servers"),
                 process_messages=bool(bot_data.get("process_messages", False)),
                 process_interactions=bool(bot_data.get("process_interactions", False)),
@@ -280,9 +343,24 @@ def load_config(config_path: str | Path | None = None) -> GatewayConfig:
             wh = WebhookConfig(
                 name=wh_data["name"],
                 source=wh_data["source"],
-                warp_api_key=wh_data["warp_api_key"],
-                warp_environment_id=wh_data["warp_environment_id"],
-                warp_base_url=wh_data.get("warp_base_url", get_default_oz_api_base_url()),
+                warp_api_key=get_config_value(
+                    wh_data,
+                    "oz_api_key",
+                    legacy_key="warp_api_key",
+                    required=True,
+                ),
+                warp_environment_id=get_config_value(
+                    wh_data,
+                    "oz_environment_id",
+                    legacy_key="warp_environment_id",
+                    required=True,
+                ),
+                warp_base_url=get_config_value(
+                    wh_data,
+                    "oz_base_url",
+                    legacy_key="warp_base_url",
+                    default=get_default_oz_api_base_url(),
+                ),
                 mcp_servers=wh_data.get("mcp_servers"),
                 skill_spec=wh_data.get("skill_spec"),
                 required_payload_fields=wh_data.get("required_payload_fields"),

@@ -97,8 +97,8 @@ class AppRouteTests(unittest.TestCase):
                   - name: "assistant"
                     slack_bot_token: "${SLACK_BOT_TOKEN}"
                     slack_signing_secret: "${SLACK_SIGNING_SECRET}"
-                    warp_api_key: "${OZ_API_KEY}"
-                    warp_environment_id: "${OZ_ENVIRONMENT_ID}"
+                    oz_api_key: "${OZ_API_KEY}"
+                    oz_environment_id: "${OZ_ENVIRONMENT_ID}"
                 """
             ),
             encoding="utf-8",
