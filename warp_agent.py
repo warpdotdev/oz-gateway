@@ -7,6 +7,8 @@ import os
 import time
 import logging
 from urllib.parse import urlparse
+
+import httpx
 from oz_agent_sdk import OzAPI
 
 logger = logging.getLogger(__name__)
@@ -135,6 +137,91 @@ class WarpAgentClient:
         run_id = response.run_id
         logger.info(f"Task submitted: run_id={run_id}")
         
+        return self._build_task_info(run_id, startup_timeout, startup_poll_interval)
+
+    def submit_followup(
+        self,
+        run_id: str,
+        prompt: str,
+        startup_timeout: float = 0.0,
+        startup_poll_interval: float = 1.0,
+    ) -> dict:
+        """
+        Send a followup to an existing run, continuing the same conversation.
+
+        Uses the ``POST /agent/runs/{run_id}/followups`` endpoint, which is not
+        yet exposed by the Oz SDK. We call it via the SDK's built-in
+        ``client.post()`` helper so auth headers, retries, and timeouts are
+        handled the same as any other SDK call.
+
+        The followup continues the original run (same ``run_id``), so the
+        returned dict has the same shape as ``submit_task()``.
+
+        Note: the run must be in a terminal state to accept a followup. If the
+        POST itself fails (e.g. an SDK ``APIStatusError`` because the run isn't
+        terminal), this raises and callers should fall back to ``submit_task()``.
+        Once the followup is accepted, this never raises for a failed info
+        fetch -- it returns a minimal payload instead, so callers don't
+        mistakenly start a second run for an already-accepted followup.
+
+        Args:
+            run_id: The existing run to continue
+            prompt: The followup prompt to send to the agent
+            startup_timeout: Optional seconds to wait for an initial session link or
+                terminal state
+            startup_poll_interval: Seconds between startup checks when startup_timeout is set
+
+        Returns:
+            dict with run_id, session_link, and current state
+        """
+        logger.info("Sending followup to run %s: prompt_length=%s", run_id, len(prompt))
+
+        # Sending the followup is the meaningful side effect. A failure here
+        # means the followup was NOT accepted, so we let it propagate and the
+        # caller falls back to starting a fresh run.
+        # NOTE: the followups endpoint reads the content from `message` (per the
+        # RunFollowupRequest schema), NOT `prompt` like POST /agent/run.
+        self.client.post(
+            f"/agent/runs/{run_id}/followups",
+            cast_to=httpx.Response,
+            body={"message": prompt},
+        )
+
+        logger.info(f"Followup accepted for run {run_id}")
+
+        # The followup is accepted and the run continues under the same run_id.
+        # Fetching the initial session link is best-effort: if it fails we must
+        # NOT raise (the caller would otherwise fall back to a new run, causing
+        # a duplicate). Return a minimal payload and let poll_task fetch the
+        # session link and state on its next retrieve.
+        try:
+            return self._build_task_info(run_id, startup_timeout, startup_poll_interval)
+        except Exception as e:
+            logger.warning(
+                f"Followup to run {run_id} accepted, but fetching initial run info "
+                f"failed ({e}); continuing with run_id only"
+            )
+            return {
+                "run_id": run_id,
+                "task_id": run_id,  # For backwards compatibility
+                "session_link": None,
+                "run_link": self._build_run_link(run_id),
+                "state": None,
+                "status_message": "",
+            }
+
+    def _build_task_info(
+        self,
+        run_id: str,
+        startup_timeout: float = 0.0,
+        startup_poll_interval: float = 1.0,
+    ) -> dict:
+        """Retrieve a run and build the standard task-info dict.
+
+        Shared by ``submit_task`` and ``submit_followup``. session_link is not
+        available on the initial run response, so we retrieve the run (and
+        optionally wait for a session link or terminal state).
+        """
         # Retrieve immediately to get session_link (not available on run response)
         run_info = self.client.agent.runs.retrieve(run_id)
         if startup_timeout > 0:

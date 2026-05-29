@@ -60,4 +60,18 @@ class ThreadContextHandler(BaseBotHandler):
             "Recent thread context:\n"
             f"{thread_context}"
         )
-        executor.submit(self.process_task, bot_config, channel, thread_ts, prompt, client, warp_client)
+
+        # Continue the same Oz run on followup mentions in this thread.
+        from app import get_thread_run_id
+        previous_run_id = get_thread_run_id(bot_config.name, channel, thread_ts)
+
+        executor.submit(
+            self.process_task,
+            bot_config,
+            channel,
+            thread_ts,
+            prompt,
+            client,
+            warp_client,
+            previous_run_id,
+        )
