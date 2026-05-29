@@ -40,9 +40,17 @@ class BaseBotHandler:
         )
 
     def on_task_submitted(self, channel: str, thread_ts: str, session_link: str | None, client):
-        """Called after the task is submitted to Oz. Posts session link by default."""
+        """Called after the task is submitted to Oz.
+
+        Posts a brief acknowledgement so the user always gets immediate
+        feedback that the request was received -- even before the agent posts
+        its own results and even when the session link isn't ready yet. The
+        session link is appended when it's already available.
+        """
+        text = "👀 On it!"
         if session_link:
-            client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=f"🔗 <{session_link}|View Session>")
+            text += f"\n🔗 <{session_link}|View Session>"
+        client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=text)
 
     def on_session_link_available(self, channel: str, thread_ts: str, session_link: str, client):
         """Called when a session link becomes available for the run. No-op by default."""
