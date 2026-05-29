@@ -40,9 +40,17 @@ class BaseBotHandler:
         )
 
     def on_task_submitted(self, channel: str, thread_ts: str, session_link: str | None, client):
-        """Called after the task is submitted to Oz. Posts session link by default."""
+        """Called after the task is submitted to Oz.
+
+        Posts a brief acknowledgement so the user always gets immediate
+        feedback that the request was received -- even before the agent posts
+        its own results and even when the session link isn't ready yet. The
+        session link is appended when it's already available.
+        """
+        text = "👀 On it!"
         if session_link:
-            client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=f"🔗 <{session_link}|View Session>")
+            text += f"\n🔗 <{session_link}|View Session>"
+        client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=text)
 
     def on_session_link_available(self, channel: str, thread_ts: str, session_link: str, client):
         """Called when a session link becomes available for the run. No-op by default."""
@@ -85,9 +93,17 @@ class BaseBotHandler:
             text=f"❌ Sorry, I encountered an error processing your request:\n```{str(error)}```",
         )
 
-    def process_task(self, bot_config: BotConfig, channel: str, thread_ts: str, prompt: str, client, warp_client):
+    def process_task(
+        self, bot_config: BotConfig, channel: str, thread_ts: str, prompt: str, client, warp_client,
+        previous_run_id: str | None = None,
+    ):
         """
         Background task: submit to Oz, poll, and post results.
+
+        If ``previous_run_id`` is provided, continue that run via the followups
+        API so the agent keeps the prior conversation and workspace state. If
+        the followup can't be sent (e.g. the run isn't in a terminal state yet),
+        fall back to starting a fresh run.
 
         Override for fundamentally different task flows.
         """
@@ -109,7 +125,23 @@ class BaseBotHandler:
         try:
             logger.info(f"[{bot_config.name}] Processing task: {prompt[:100]}...")
 
-            submit_result = warp_client.submit_task(prompt)
+            submit_result = None
+            if previous_run_id:
+                try:
+                    logger.info(
+                        f"[{bot_config.name}] Continuing thread via followup to run {previous_run_id}"
+                    )
+                    submit_result = warp_client.submit_followup(previous_run_id, prompt)
+                except Exception as e:
+                    logger.warning(
+                        f"[{bot_config.name}] Followup to run {previous_run_id} failed "
+                        f"({e}); starting a new run instead"
+                    )
+                    submit_result = None
+
+            if submit_result is None:
+                submit_result = warp_client.submit_task(prompt)
+
             run_id = submit_result["run_id"]
             session_link = submit_result.get("session_link")
             run_link = submit_result.get("run_link")
@@ -145,6 +177,10 @@ class BaseBotHandler:
                 client=client,
             )
 
+            # Record the run_id so followups in this thread continue this run.
+            from app import set_thread_run_id
+            set_thread_run_id(bot_config.name, channel, thread_ts, result.get("run_id", run_id))
+
             logger.info(f"[{bot_config.name}] Task {result.get('task_id', 'unknown')} completed with state {result.get('state')}")
 
         except Exception as e:
@@ -179,6 +215,10 @@ class BaseBotHandler:
 
         prompt = self.build_prompt(user_request, channel, thread_ts, bot_config, event)
 
+        # Look up the most recent Oz run for this Slack thread to continue it
+        from app import get_thread_run_id
+        previous_run_id = get_thread_run_id(bot_config.name, channel, thread_ts)
+
         executor.submit(
             self.process_task,
             bot_config,
@@ -187,6 +227,7 @@ class BaseBotHandler:
             prompt,
             client,
             warp_client,
+            previous_run_id,
         )
 
     def on_message(self, event: dict, bot_config: BotConfig, client, context: dict, executor, warp_client):

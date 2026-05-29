@@ -51,6 +51,12 @@ _webhook_warp_clients: dict[str, WarpAgentClient] = {}
 _processed_events: dict[str, float] = {}  # event_id -> timestamp
 _EVENT_CACHE_TTL = 300  # 5 minutes
 
+# Thread-to-run mapping: allows followup messages in the same Slack thread to
+# continue the same Oz agent run (via the followups API).
+# Key: "{bot_name}:{channel}:{thread_ts}" -> (run_id, timestamp)
+_thread_runs: dict[str, tuple[str, float]] = {}
+_THREAD_RUN_TTL = 86400  # 24 hours
+
 # Bots whose Slack App failed to initialize (e.g. invalid/rotated token).
 # Tracked so a single bad bot does not take down the entire gateway and so
 # requests to the failed bot return a clear 503. Details are logged server-side.
@@ -138,6 +144,35 @@ def is_duplicate_event(event_id: str | None) -> bool:
     
     _processed_events[event_id] = now
     return False
+
+
+def _thread_run_key(bot_name: str, channel: str, thread_ts: str) -> str:
+    return f"{bot_name}:{channel}:{thread_ts}"
+
+
+def get_thread_run_id(bot_name: str, channel: str, thread_ts: str) -> str | None:
+    """Look up the most recent Oz run_id for a Slack thread (for followups)."""
+    import time
+    key = _thread_run_key(bot_name, channel, thread_ts)
+    entry = _thread_runs.get(key)
+    if entry is None:
+        return None
+    run_id, ts = entry
+    if time.time() - ts > _THREAD_RUN_TTL:
+        del _thread_runs[key]
+        return None
+    return run_id
+
+
+def set_thread_run_id(bot_name: str, channel: str, thread_ts: str, run_id: str) -> None:
+    """Store the most recent Oz run_id for a Slack thread (for followups)."""
+    import time
+    # Opportunistic cleanup of expired entries
+    now = time.time()
+    expired = [k for k, (_, ts) in _thread_runs.items() if now - ts > _THREAD_RUN_TTL]
+    for k in expired:
+        del _thread_runs[k]
+    _thread_runs[_thread_run_key(bot_name, channel, thread_ts)] = (run_id, now)
 
 
 def register_event_handlers(app: App, bot_config: BotConfig, handler: BaseBotHandler):
